@@ -51,7 +51,7 @@
   .wrap { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 0 var(--gut); }
 
   /* nav */
-  nav.top { position: sticky; top: 0; z-index: 20; background: rgba(4, 26, 17, 0.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: rgba(4, 26, 17, 0.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
   nav.top .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
   nav.top .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-family: "DM Serif Display", serif; font-size: 20px; white-space: nowrap; }
   nav.top .brand img { height: 30px; }
@@ -206,8 +206,8 @@
   .suits { position: fixed; inset: 0; pointer-events: none; z-index: 0; font-size: 90px; color: rgba(244,239,227,.03); overflow: hidden; }
   .suits span { position: absolute; animation: drift 40s linear infinite; }
   @keyframes drift { from { transform: translateY(110vh) rotate(0); } to { transform: translateY(-20vh) rotate(360deg); } }
-  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
-  .reveal.in { opacity: 1; transform: none; }
+  .reveal { animation: rise-in .7s ease both; }
+  @keyframes rise-in { from { transform: translateY(18px); } }
   @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } .reveal { opacity: 1; transform: none; } }
   @media (max-width: 600px) { .badges { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .badge { padding: 12px 8px; } .badge img { width: 76px; height: 76px; } .badge .n { font-size: 17px; } .badge .ds { font-size: 12px; }
     .netbar { width: 90px; } th, td { padding: 8px 6px; } .hero { padding-top: 32px; } }
@@ -847,7 +847,7 @@ function renderHistory() {
 // ---------- modals -------------------------------------------------------------------------
 const modal = $("#modal"), sheet = $("#sheet");
 function openModal(html, after) { sheet.innerHTML = html; modal.classList.add("on"); document.body.style.overflow = "hidden"; modal.scrollTop = 0; if (after) requestAnimationFrame(after); }
-function closeModal() { modal.classList.remove("on"); document.body.style.overflow = ""; hideTip(); if (location.hash.startsWith("#p/") || location.hash.startsWith("#n/")) history.replaceState(null, "", location.pathname); }
+function closeModal() { modal.classList.remove("on"); document.body.style.overflow = ""; hideTip(); if (location.hash.startsWith("#p/") || location.hash.startsWith("#n/")) { try { history.replaceState(null, "", location.pathname); } catch (e) {} } }
 modal.addEventListener("click", e => { if (e.target === modal || e.target.closest(".x")) closeModal(); });
 addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 
@@ -857,7 +857,7 @@ function openPlayer(id) {
   const RV = D.rivals.find(r => r.id === id);
   const earned = D.badges.filter(b => b.holders.some(h => h[0] === id));
   const h2h = D.h2h[id];
-  history.replaceState(null, "", "#p/" + encodeURIComponent(p.name));
+  try { history.replaceState(null, "", "#p/" + encodeURIComponent(p.name)); } catch (e) {}
   openModal(`<div class="pf-head" style="--c:${col(id)}"><div><div class="eyebrow">#${rank} all time · since ${dTiny(p.first)}</div><div class="nm">${esc(p.name)}</div></div>
       <div class="big ${cls(p.net)}">${money(p.net)}</div></div>
     <div class="stats">${[
@@ -897,7 +897,7 @@ function openPlayer(id) {
 
 function openNight(date) {
   const n = D.nights.find(x => x.date === date); if (!n) return;
-  history.replaceState(null, "", "#n/" + date);
+  try { history.replaceState(null, "", "#n/" + date); } catch (e) {}
   const games = n.games.map(id => G.get(id));
   openModal(`<div class="pf-head"><div><div class="eyebrow">${n.games.length} games · ${n.nets.length} players · $${n.pot.toFixed(0)} in play${n.host ? " · hosted by " + esc(nm(n.host)) : ""}</div>
       <div class="nm">${d3.timeFormat("%B %-d, %Y")(parse(date))}</div></div></div>
@@ -916,14 +916,9 @@ document.addEventListener("click", e => {
 // ---------- boot ----------------------------------------------------------------------------
 $("#built").textContent = "Updated " + d3.timeFormat("%B %-d, %Y")(new Date(D.built));
 const renders = { race: renderRace, nights: () => { renderHeat(); renderNightCards(); }, records: renderRecords, rivalries: renderH2H, money: renderMoney, style: renderStyle, trophies: renderBadges, history: renderHistory };
-const done = new Set();
-const io = new IntersectionObserver(es => es.forEach(e => {
-  if (!e.isIntersecting) return;
-  e.target.classList.add("in");
-  const f = renders[e.target.id];
-  if (f && !done.has(e.target.id)) { done.add(e.target.id); f(); }
-}), { rootMargin: "0px 0px -10% 0px" });
-document.querySelectorAll("section").forEach(s => io.observe(s));
+// draw everything up front so the page is complete at rest (and in link previews)
+const done = new Set(Object.keys(renders));
+done.forEach(k => renders[k]());
 // active nav link
 const links = [...document.querySelectorAll("#navlinks a")];
 const navIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id)); }), { rootMargin: "-45% 0px -50% 0px" });
