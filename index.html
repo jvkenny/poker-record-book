@@ -176,6 +176,9 @@
   .badge.none img { filter: grayscale(1) brightness(.5); }
   .badge .n { font-family: "DM Serif Display", serif; font-size: 20px; line-height: 1.1; }
   .badge .ds { color: var(--muted); font-size: 13px; }
+  .filters { display: flex; gap: 8px; flex-wrap: wrap; }
+  .badge { position: relative; }
+  .badge .new { position: absolute; top: 10px; right: 10px; font: 700 10px "JetBrains Mono", monospace; letter-spacing: .12em; color: var(--felt-deep); background: var(--gold); border-radius: 99px; padding: 2px 7px; }
   .badge .rar { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--gold); letter-spacing: .1em; text-transform: uppercase; }
   .badge .hs { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 2px; }
   .badge .hs span { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: rgba(244,239,227,.08); cursor: pointer; }
@@ -303,9 +306,12 @@
 
   <section id="trophies" class="reveal">
     <div class="sh">
-      <div><div class="eyebrow">SettleStack achievements</div><h2>The Trophy Case</h2>
-        <p>Every badge in the game and who's earned it. Rarity is the share of players holding it.</p></div>
-      <select id="badgeFilter" aria-label="Filter by player"><option value="">Everyone</option></select>
+      <div><div class="eyebrow">Achievements</div><h2>The Trophy Case</h2>
+        <p id="badgeLede">Every badge and who's earned it. Rarity is the share of players holding it.</p></div>
+      <div class="filters">
+        <select id="badgeCat" aria-label="Filter by category"><option value="">All categories</option></select>
+        <select id="badgeFilter" aria-label="Filter by player"><option value="">Everyone</option></select>
+      </div>
     </div>
     <div class="badges" id="badges"></div>
   </section>
@@ -789,14 +795,17 @@ function renderStyle() {
 // ---------- trophies ------------------------------------------------------------------
 function renderBadges() {
   const f = +$("#badgeFilter").value || null;
+  const cat = $("#badgeCat").value;
   const total = D.players.length;
   const n = b => b.holders.length || 1e9;   // unclaimed badges go last
-  const list = D.badges.slice().sort((a, b) => n(a) - n(b) || a.name.localeCompare(b.name));
+  const list = D.badges.filter(b => !cat || b.cat === cat).sort((a, b) => n(a) - n(b) || a.name.localeCompare(b.name));
+  const claimed = D.badges.filter(b => b.holders.length).length;
+  $("#badgeLede").textContent = `${D.badges.length} trophies, ${claimed} claimed so far. Rarity is the share of players holding each one; the ones marked New arrived with the record book.`;
   $("#badges").innerHTML = list.map(b => {
     const hs = b.holders.filter(h => P.has(h[0]));
     const has = f ? hs.some(h => h[0] === f) : true;
     const rar = hs.length ? Math.round(100 * hs.length / total) + "% of players" : "Unclaimed";
-    return `<div class="badge ${hs.length ? "" : "none"} ${f && !has ? "dim" : ""}">
+    return `<div class="badge ${hs.length ? "" : "none"} ${f && !has ? "dim" : ""}">${b.new ? '<span class="new">NEW</span>' : ""}
       <img src="${b.img}" alt="" loading="lazy"><div class="n">${esc(b.name)}</div><div class="ds">${esc(b.desc || "")}</div>
       <div class="rar">${rar}</div>
       <div class="hs">${hs.slice(0, 8).map(h => `<span data-pid="${h[0]}" title="${h[1] ? "Earned " + dShort(h[1]) : ""}">${esc(nm(h[0]))}</span>`).join("")}${hs.length > 8 ? `<span>+${hs.length - 8}</span>` : ""}</div></div>`;
@@ -806,6 +815,9 @@ const bf = $("#badgeFilter");
 D.players.filter(p => D.badges.some(b => b.holders.some(h => h[0] === p.id))).sort((a, b) => a.name.localeCompare(b.name))
   .forEach(p => bf.insertAdjacentHTML("beforeend", `<option value="${p.id}">${esc(p.name)}</option>`));
 bf.onchange = renderBadges;
+const bc = $("#badgeCat");
+[...new Set(D.badges.map(b => b.cat))].sort().forEach(c => bc.insertAdjacentHTML("beforeend", `<option>${esc(c)}</option>`));
+bc.onchange = renderBadges;
 
 // ---------- history ---------------------------------------------------------------------
 function renderHistory() {

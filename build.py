@@ -54,6 +54,11 @@ def connect(args):
     return psycopg.connect(args.dsn, row_factory=dict_row)
 
 
+def slug(name: str) -> str:
+    """Badge image name the way SettleStack spells them: 'Where Were You?' -> 'wherewereyou'."""
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
 def r2(v: float) -> float:
     return round(float(v) + 0.0, 2)
 
@@ -322,6 +327,13 @@ def build(conn) -> dict:
                               key=lambda h: h[1])})
         if r["user_id"] is not None:
             settlestack[r["id"]].add(cid(r["user_id"]))
+    for aid, nm_, desc, cat, icon, tone in trophies.EXTRA:
+        if aid in badges:
+            continue   # SettleStack seeded it after all; keep its art
+        badges[aid] = {"id": aid, "name": nm_, "desc": desc, "cat": cat, "new": True,
+                       "img": f"assets/badges/{slug(nm_)}.png",
+                       "holders": sorted(([u, d] for u, d in earned.get(aid, {}).items() if u in pname),
+                                         key=lambda h: h[1])}
     AUDIT.update(badges=badges, settlestack=settlestack, name=name)
 
     # ---- time --------------------------------------------------------------
