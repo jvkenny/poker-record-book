@@ -27,8 +27,10 @@ from itertools import combinations
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-NAMES = {k.strip(): v for k, v in json.loads((HERE / "names.json").read_text()).items()
-         if not k.startswith("_")}
+_NAMES_FILE = json.loads((HERE / "names.json").read_text())
+NAMES = {k.strip(): v for k, v in _NAMES_FILE.items() if not k.startswith("_")}
+# One person, two SettleStack accounts: the duplicate's games count for the survivor.
+MERGE = {k.strip(): v.strip() for k, v in _NAMES_FILE.get("_merge", {}).items() if not k.startswith("_")}
 REGULAR_MIN_GAMES = 8   # who gets a line in head-to-head and the colour slots
 EPS = 0.005
 # A game counts toward the record book only if it looks like a real group game:
@@ -90,6 +92,10 @@ def build(conn) -> dict:
             FROM achievements a LEFT JOIN earned_achievements e ON e.achievement_id = a.id
             ORDER BY a.id, e.date_earned""").fetchall()
 
+    by_username = {u: i for i, u in users.items()}
+    canon = {by_username[d]: by_username[k] for d, k in MERGE.items() if d in by_username and k in by_username}
+    cid = lambda uid: canon.get(uid, uid)
+
     def name(uid: int) -> str:
         u = users.get(uid, f"#{uid}")
         return NAMES.get(u, u)
@@ -103,7 +109,7 @@ def build(conn) -> dict:
             "txns": r["transactions"] or [], "seats": []})
         buy, out = float(r["buy_in"]), float(r["final_balance"])
         rebuys = max(0, round((buy - g["default"]) / g["default"])) if g["default"] else 0
-        g["seats"].append({"uid": r["user_id"], "buy": r2(buy), "out": r2(out),
+        g["seats"].append({"uid": cid(r["user_id"]), "buy": r2(buy), "out": r2(out),
                            "net": r2(out - buy), "rebuys": rebuys, "bust": out <= 0.01})
     def real(g):
         nets = [s["net"] for s in g["seats"]]
@@ -202,7 +208,7 @@ def build(conn) -> dict:
     for g in games.values():
         for t in g["txns"]:
             try:
-                paid[(t["payer_id"], t["payee_id"])] += float(t["amount"])
+                paid[(cid(t["payer_id"]), cid(t["payee_id"]))] += float(t["amount"])
             except (KeyError, TypeError, ValueError):
                 continue
     flows = sorted(([pr, pe, r2(v)] for (pr, pe), v in paid.items() if v > 0.009), key=lambda x: -x[2])
@@ -282,8 +288,9 @@ def build(conn) -> dict:
         b = badges.setdefault(r["id"], {
             "id": r["id"], "name": r["name"], "desc": r["description"], "cat": r["category"],
             "img": "assets/badges/" + Path(r["image_path"] or "").name, "holders": []})
-        if r["user_id"] is not None and r["user_id"] in pname:
-            b["holders"].append([r["user_id"], r["date_earned"].date().isoformat() if r["date_earned"] else None])
+        uid = cid(r["user_id"]) if r["user_id"] is not None else None
+        if uid in pname and all(h[0] != uid for h in b["holders"]):
+            b["holders"].append([uid, r["date_earned"].date().isoformat() if r["date_earned"] else None])
 
     # ---- time --------------------------------------------------------------
     months = defaultdict(lambda: {"games": 0, "pot": 0.0, "nights": set()})

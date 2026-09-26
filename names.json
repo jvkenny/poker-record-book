@@ -1,5 +1,9 @@
 {
   "_note": "SettleStack username -> the name shown on the site. Anyone missing shows their username.",
+  "_merge": {
+    "_note": "duplicate SettleStack accounts for one person: duplicate username -> the account that keeps the history",
+    "mackl1n": "Adam adam"
+  },
   "JK": "John",
   "dameech222": "Demetri",
   "gritz88": "Chris",
@@ -19,7 +23,7 @@
   "Sam": "Sam",
   "thoron300": "Bijan",
   "Jon better spelling": "Jon",
-  "mackl1n": "mackl1n",
+  "mackl1n": "Adam R.",
   "Nik": "Nik",
   "Hanroe": "Hanroe",
   "aroe": "aroe",
