@@ -4,6 +4,16 @@
     "_note": "duplicate SettleStack accounts for one person: duplicate username -> the account that keeps the history",
     "mackl1n": "Adam adam"
   },
+  "_test": {
+    "_note": "test accounts: any game with one of these in it is left out entirely",
+    "accounts": [
+      "Jones",
+      "Guy",
+      "mlibby",
+      "victoria",
+      "Alyssa"
+    ]
+  },
   "JK": "John",
   "dameech222": "Demetri",
   "gritz88": "Chris",

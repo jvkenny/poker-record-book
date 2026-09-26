@@ -13,8 +13,8 @@ Refreshing from a backup:
     ../settle-stack/.venv/bin/python build.py
 
 Everything the page shows is computed here; index.html only draws it.
-A "night" is the Chicago date six hours before a game started, so the
-1 a.m. game belongs to the night it was played.
+A "night" is a run of games each starting within 8 hours of the last,
+dated by the evening it began, so the 1 a.m. game belongs to its night.
 """
 from __future__ import annotations
 
@@ -22,22 +22,26 @@ import argparse
 import json
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from itertools import combinations
 from pathlib import Path
+
+import trophies
 
 HERE = Path(__file__).resolve().parent
 _NAMES_FILE = json.loads((HERE / "names.json").read_text())
 NAMES = {k.strip(): v for k, v in _NAMES_FILE.items() if not k.startswith("_")}
 # One person, two SettleStack accounts: the duplicate's games count for the survivor.
 MERGE = {k.strip(): v.strip() for k, v in _NAMES_FILE.get("_merge", {}).items() if not k.startswith("_")}
+TEST_ACCOUNTS = set(_NAMES_FILE.get("_test", {}).get("accounts", []))
 REGULAR_MIN_GAMES = 8   # who gets a line in head-to-head and the colour slots
 EPS = 0.005
+AUDIT: dict = {}   # filled by build() for --audit
 # A game counts toward the record book only if it looks like a real group game:
-# three or more players, somebody actually won, and the money balances.
-# That drops the heads-up test games and the day-one game that created $25.
+# no test accounts, three or more players, somebody actually won, and the money
+# roughly balances. The tolerance keeps the Oct 2025 game that's $2.50 off.
 MIN_PLAYERS = 3
-MAX_IMBALANCE = 1.00
+MAX_IMBALANCE = 5.00
 
 
 def connect(args):
@@ -111,13 +115,28 @@ def build(conn) -> dict:
         rebuys = max(0, round((buy - g["default"]) / g["default"])) if g["default"] else 0
         g["seats"].append({"uid": cid(r["user_id"]), "buy": r2(buy), "out": r2(out),
                            "net": r2(out - buy), "rebuys": rebuys, "bust": out <= 0.01})
+    test_ids = {i for i, u in users.items() if u in TEST_ACCOUNTS}
+
     def real(g):
         nets = [s["net"] for s in g["seats"]]
-        return (len(nets) >= MIN_PLAYERS and any(abs(n) > EPS for n in nets)
+        return (not any(s["uid"] in test_ids for s in g["seats"])
+                and len(nets) >= MIN_PLAYERS and any(abs(n) > EPS for n in nets)
                 and abs(sum(nets)) <= MAX_IMBALANCE)
     dropped = sorted(gid for gid, g in games.items() if not real(g))
     games = {gid: g for gid, g in games.items() if real(g)}
     order = list(games)  # already chronological
+
+    # A night is a run of games each starting within 8 hours of the one before,
+    # dated by the evening it began (Chicago time, 6 a.m. rollover). Clustering
+    # rather than cutting at a clock time keeps a night whole even where an import
+    # stored the times shifted by the UTC offset (Nov 2025 runs 12:05 to 6:07 a.m.).
+    prev_t = None
+    for gid in order:
+        g = games[gid]
+        if prev_t is None or g["t"] - prev_t > timedelta(hours=8):
+            night = (g["t"] - timedelta(hours=6)).date().isoformat()
+        g["night"] = night
+        prev_t = g["t"]
 
     # number games within their night
     per_night = defaultdict(int)
@@ -282,15 +301,28 @@ def build(conn) -> dict:
          "game": widest["id"], "fmt": "spread", "note": "first to last"},
     ]
 
-    # ---- badges ------------------------------------------------------------
+    # ---- badges: recomputed from these games (see trophies.py / AUDIT.md) ----
+    night_hosts = {}
+    for d in night_order:
+        if nights[d]["host"]:
+            night_hosts[d] = cid(nights[d]["host"])
+    earned = trophies.compute([
+        {"id": gid, "night": games[gid]["night"], "t": games[gid]["t"],
+         "seats": games[gid]["seats"],
+         "txns": [(cid(t["payer_id"]), cid(t["payee_id"]), float(t["amount"]))
+                  for t in games[gid]["txns"] if "payer_id" in t and "payee_id" in t and "amount" in t]}
+        for gid in order], night_hosts)
     badges: dict[int, dict] = {}
+    settlestack: dict[int, set] = defaultdict(set)   # what SettleStack has, for --audit
     for r in badge_rows:
         b = badges.setdefault(r["id"], {
             "id": r["id"], "name": r["name"], "desc": r["description"], "cat": r["category"],
-            "img": "assets/badges/" + Path(r["image_path"] or "").name, "holders": []})
-        uid = cid(r["user_id"]) if r["user_id"] is not None else None
-        if uid in pname and all(h[0] != uid for h in b["holders"]):
-            b["holders"].append([uid, r["date_earned"].date().isoformat() if r["date_earned"] else None])
+            "img": "assets/badges/" + Path(r["image_path"] or "").name,
+            "holders": sorted(([u, d] for u, d in earned.get(r["id"], {}).items() if u in pname),
+                              key=lambda h: h[1])})
+        if r["user_id"] is not None:
+            settlestack[r["id"]].add(cid(r["user_id"]))
+    AUDIT.update(badges=badges, settlestack=settlestack, name=name)
 
     # ---- time --------------------------------------------------------------
     months = defaultdict(lambda: {"games": 0, "pot": 0.0, "nights": set()})
@@ -336,12 +368,31 @@ def build(conn) -> dict:
     }
 
 
+def audit():
+    """Print, per trophy, who SettleStack has that it shouldn't and who it's missing."""
+    name, ss = AUDIT["name"], AUDIT["settlestack"]
+    for b in sorted(AUDIT["badges"].values(), key=lambda b: b["id"]):
+        want = {h[0] for h in b["holders"]}
+        have = ss.get(b["id"], set())
+        extra = sorted(name(u) for u in have - want)
+        missing = sorted(name(u) for u in want - have)
+        if extra or missing:
+            print(f"[{b['id']:>2}] {b['name']}  ({len(have)} -> {len(want)})")
+            if missing:
+                print("     + " + ", ".join(missing))
+            if extra:
+                print("     - " + ", ".join(extra))
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dsn", default="dbname=ss_snapshot")
     ap.add_argument("--live", action="store_true")
+    ap.add_argument("--audit", action="store_true", help="diff the trophies against SettleStack's")
     args = ap.parse_args()
     data = build(connect(args))
+    if args.audit:
+        audit()
     (HERE / "data.json").write_text(json.dumps(data, separators=(",", ":"), default=str))
     try:
         import make_og
