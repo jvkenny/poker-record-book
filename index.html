@@ -1,0 +1,940 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Poker Record Book</title>
+<meta name="description" content="Every game, every night, every dollar. The all-time record book for poker night, built from SettleStack.">
+<meta property="og:title" content="The Poker Record Book">
+<meta property="og:description" content="Every game, every night, every dollar. Leaderboards, rivalries, records and the trophy case.">
+<meta property="og:image" content="https://jvkenny.github.io/poker-record-book/assets/og.png">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#0d3b2a">
+<link rel="icon" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Instrument+Sans:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    color-scheme: dark;
+    --felt: #0d3b2a;
+    --felt-deep: #062418;
+    --ink: #f4efe3;
+    --muted: #a9bfb2;
+    --faint: #6f8a7c;
+    --line: rgba(244, 239, 227, 0.12);
+    --card: rgba(6, 36, 24, 0.66);
+    --card-solid: #0a2f21;
+    --gold: #e8c46a;
+    --gold-soft: rgba(232, 196, 106, 0.14);
+    --up: #7fe0a4;
+    --down: #ff8a7a;
+    --other: #5f7a6c;
+    --r: 18px;
+    --gut: clamp(16px, 4vw, 40px);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+  body {
+    margin: 0; color: var(--ink); font-family: "Instrument Sans", system-ui, sans-serif; font-size: 16px; line-height: 1.45;
+    background: var(--felt-deep);
+    background-image: radial-gradient(ellipse 120% 60% at 50% 0%, #17583f 0%, var(--felt) 45%, var(--felt-deep) 100%);
+    background-attachment: fixed; overflow-x: hidden;
+  }
+  body::before { /* felt grain */
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .5;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  a { color: var(--gold); }
+  .mono { font-family: "JetBrains Mono", monospace; }
+  .up { color: var(--up); } .down { color: var(--down); } .dim { color: var(--muted); }
+  .wrap { position: relative; z-index: 1; max-width: 1240px; margin: 0 auto; padding: 0 var(--gut); }
+
+  /* nav */
+  nav.top { position: sticky; top: 0; z-index: 20; background: rgba(4, 26, 17, 0.86); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  nav.top .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  nav.top .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-family: "DM Serif Display", serif; font-size: 20px; white-space: nowrap; }
+  nav.top .brand img { height: 30px; }
+  nav.top .links { display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; margin-left: auto; }
+  nav.top .links::-webkit-scrollbar { display: none; }
+  nav.top .links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 600; letter-spacing: .04em; padding: 6px 10px; border-radius: 99px; white-space: nowrap; }
+  nav.top .links a:hover, nav.top .links a.on { color: var(--felt-deep); background: var(--gold); }
+  @media (max-width: 720px) { nav.top .brand span { display: none; } }
+
+  /* hero */
+  .hero { text-align: center; padding: 56px 0 28px; position: relative; }
+  .hero .logo { width: min(440px, 82vw); filter: drop-shadow(0 18px 40px rgba(0,0,0,.55)); animation: drop 1s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes drop { from { opacity: 0; transform: translateY(-30px) scale(.92); } }
+  .eyebrow { font-family: "JetBrains Mono", monospace; letter-spacing: .32em; text-transform: uppercase; color: var(--gold); font-size: 12px; }
+  h1 { font-family: "DM Serif Display", serif; font-weight: 400; font-size: clamp(44px, 8vw, 92px); line-height: .95; margin: 8px 0 10px; }
+  h1 em { color: var(--gold); }
+  .hero p.lede { color: var(--muted); max-width: 620px; margin: 0 auto; font-size: 18px; }
+  .tiles { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 12px; margin: 34px 0 0; }
+  @media (max-width: 1000px) { .tiles { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (max-width: 520px) { .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; text-align: left; }
+  .tile .v { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: clamp(24px, 3.2vw, 34px); line-height: 1.1; }
+  .tile .l { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .12em; margin-top: 4px; }
+  .crowns { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+  @media (max-width: 1000px) { .crowns { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 560px) { .crowns { grid-template-columns: 1fr; } }
+  .crown-card { display: flex; gap: 14px; align-items: center; text-align: left; padding: 16px 18px; border-radius: var(--r); border: 1px solid rgba(232,196,106,.45); background: linear-gradient(135deg, rgba(232,196,106,.16), rgba(6,36,24,.7) 65%); cursor: pointer; }
+  .crown-card .ic { font-size: 30px; }
+  .crown-card .k { font-size: 12px; color: var(--gold); text-transform: uppercase; letter-spacing: .14em; font-family: "JetBrains Mono", monospace; }
+  .crown-card .n { font-family: "DM Serif Display", serif; font-size: 26px; line-height: 1.1; }
+  .crown-card .s { color: var(--muted); font-size: 14px; }
+
+  /* sections */
+  section { padding: 56px 0 8px; }
+  .sh { display: flex; align-items: end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  h2 { font-family: "DM Serif Display", serif; font-weight: 400; font-size: clamp(32px, 4.6vw, 48px); line-height: 1; margin: 6px 0 0; }
+  .sh p { color: var(--muted); margin: 8px 0 0; max-width: 640px; }
+  .panel { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 18px; position: relative; }
+  .panel + .panel { margin-top: 14px; }
+  .ptitle { font-family: "JetBrains Mono", monospace; color: var(--gold); letter-spacing: .22em; text-transform: uppercase; font-size: 12px; margin: 0 0 12px; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); gap: 14px; }
+  .scroll-x { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .seg { display: inline-flex; background: rgba(0,0,0,.25); border: 1px solid var(--line); border-radius: 99px; padding: 3px; }
+  .seg button { background: none; border: 0; color: var(--muted); font: 600 13px "Instrument Sans", sans-serif; padding: 6px 12px; border-radius: 99px; cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--gold); color: var(--felt-deep); }
+  select { background: var(--card-solid); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: 600 14px "Instrument Sans", sans-serif; }
+
+  /* leaderboard */
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 9px 8px; text-align: left; white-space: nowrap; }
+  th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; font-weight: 600; border-bottom: 1px solid var(--line); cursor: pointer; user-select: none; }
+  th.sorted { color: var(--gold); }
+  th.sorted::after { content: " ▾"; } th.sorted.asc::after { content: " ▴"; }
+  tbody tr { border-top: 1px solid var(--line); }
+  tbody tr:hover { background: rgba(232,196,106,.06); }
+  td.num, th.num { text-align: right; font-family: "JetBrains Mono", monospace; font-size: 14px; }
+  td.rk { color: var(--gold); font-family: "JetBrains Mono", monospace; width: 32px; }
+  .who { display: inline-flex; align-items: center; gap: 8px; font-weight: 700; cursor: pointer; }
+  .who:hover { color: var(--gold); }
+  .chip { width: 10px; height: 10px; border-radius: 3px; flex: none; background: var(--c, var(--other)); }
+  .netbar { width: 150px; }
+  .netbar svg { display: block; }
+  .streak { font-family: "JetBrains Mono", monospace; font-size: 13px; padding: 2px 8px; border-radius: 99px; }
+  .streak.w { background: rgba(127,224,164,.14); color: var(--up); } .streak.l { background: rgba(255,138,122,.13); color: var(--down); }
+
+  /* charts */
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .axis text, .tick text { fill: var(--muted); font: 500 11px "JetBrains Mono", monospace; }
+  .axis path, .axis line { stroke: none; }
+  .grid line { stroke: rgba(244,239,227,.07); }
+  .zero { stroke: rgba(244,239,227,.35); stroke-dasharray: 3 5; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; margin-top: 10px; }
+  .legend button { background: none; border: 0; color: var(--ink); font: 600 13px "Instrument Sans", sans-serif; display: inline-flex; gap: 6px; align-items: center; cursor: pointer; padding: 2px 0; opacity: .9; }
+  .legend button .sw { width: 16px; height: 4px; border-radius: 4px; background: var(--c); }
+  .legend button.off { opacity: .35; }
+  .tip { position: fixed; z-index: 50; pointer-events: none; background: #051c12; border: 1px solid rgba(232,196,106,.5); border-radius: 12px; padding: 10px 12px; font-size: 13px; box-shadow: 0 12px 30px rgba(0,0,0,.5); opacity: 0; transition: opacity .12s; max-width: 280px; }
+  .tip.on { opacity: 1; }
+  .tip .t { font-family: "JetBrains Mono", monospace; color: var(--gold); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+  .tip .row { display: flex; justify-content: space-between; gap: 14px; align-items: center; }
+  .tip .row b { font-family: "JetBrains Mono", monospace; font-weight: 500; }
+  .tip .row .nm { display: inline-flex; gap: 6px; align-items: center; }
+  .note { color: var(--faint); font-size: 12px; margin-top: 10px; }
+
+  /* heatmap */
+  .heat .cell { stroke: var(--felt-deep); stroke-width: 2; rx: 4; }
+  .heat .rl { fill: var(--ink); font: 700 13px "Instrument Sans", sans-serif; cursor: pointer; }
+  .heat .cl { fill: var(--muted); font: 500 10px "JetBrains Mono", monospace; }
+  .scale { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; margin-top: 10px; }
+  .scale i { display: block; width: 160px; height: 8px; border-radius: 4px; background: linear-gradient(90deg, #ff8a7a, #c86e62 25%, #3e5a4c 50%, #4fae78 75%, #7fe0a4); }
+
+  /* nights */
+  .nights { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); gap: 12px; overflow-x: auto; padding-bottom: 8px; scroll-snap-type: x mandatory; }
+  .night { scroll-snap-align: start; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; cursor: pointer; transition: transform .15s, border-color .15s; }
+  .night:hover { transform: translateY(-3px); border-color: rgba(232,196,106,.5); }
+  .night .d { font-family: "JetBrains Mono", monospace; color: var(--gold); font-size: 12px; letter-spacing: .12em; text-transform: uppercase; }
+  .night .w { font-family: "DM Serif Display", serif; font-size: 24px; line-height: 1.1; margin: 4px 0; }
+  .night .m { color: var(--muted); font-size: 13px; }
+  .night .mini { display: flex; gap: 2px; margin-top: 10px; height: 34px; align-items: center; }
+
+  /* records */
+  .records { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 12px; }
+  .rec { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; display: grid; gap: 4px; position: relative; overflow: hidden; }
+  .rec::after { content: attr(data-ic); position: absolute; right: -6px; top: -10px; font-size: 64px; opacity: .13; }
+  .rec .k { color: var(--gold); font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; }
+  .rec .v { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 30px; line-height: 1.1; }
+  .rec .h { font-family: "DM Serif Display", serif; font-size: 22px; line-height: 1.1; }
+  .rec .d { color: var(--muted); font-size: 13px; }
+
+  /* rivals */
+  .rivals { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); gap: 12px; }
+  .rival { background: rgba(0,0,0,.18); border-radius: 14px; padding: 14px; border-top: 4px solid var(--c, var(--other)); }
+  .rival .n { font-family: "DM Serif Display", serif; font-size: 22px; cursor: pointer; }
+  .rival .l { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; padding-top: 8px; margin-top: 8px; border-top: 1px solid var(--line); }
+  .rival .l span:first-child { color: var(--muted); }
+
+  /* trophies */
+  .badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 210px), 1fr)); gap: 12px; }
+  .badge { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 6px; transition: opacity .2s, transform .2s; }
+  .badge img { width: 104px; height: 104px; object-fit: contain; filter: drop-shadow(0 8px 16px rgba(0,0,0,.45)); transition: transform .25s; }
+  .badge:hover img { transform: scale(1.08) rotate(-3deg); }
+  .badge.none img { filter: grayscale(1) brightness(.5); }
+  .badge .n { font-family: "DM Serif Display", serif; font-size: 20px; line-height: 1.1; }
+  .badge .ds { color: var(--muted); font-size: 13px; }
+  .badge .rar { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--gold); letter-spacing: .1em; text-transform: uppercase; }
+  .badge .hs { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; margin-top: 2px; }
+  .badge .hs span { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: rgba(244,239,227,.08); cursor: pointer; }
+  .badge.dim { opacity: .28; transform: scale(.97); }
+
+  /* modal */
+  .modal { position: fixed; inset: 0; z-index: 40; display: grid; place-items: start center; overflow-y: auto; background: rgba(2, 14, 9, .82); backdrop-filter: blur(8px); padding: 40px var(--gut); opacity: 0; pointer-events: none; transition: opacity .25s; }
+  .modal.on { opacity: 1; pointer-events: auto; }
+  .sheet { width: min(980px, 100%); background: linear-gradient(180deg, #0f4430, #07281b); border: 1px solid rgba(232,196,106,.35); border-radius: 24px; padding: clamp(18px, 3vw, 30px); position: relative; box-shadow: 0 30px 80px rgba(0,0,0,.6); }
+  .modal.on .sheet { animation: rise .45s cubic-bezier(.2,1.2,.4,1) both; }
+  @keyframes rise { from { opacity: 0; transform: translateY(40px) scale(.97); } }
+  .x { position: absolute; top: 14px; right: 14px; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--line); background: rgba(0,0,0,.3); color: var(--ink); font-size: 20px; cursor: pointer; }
+  .pf-head { padding-right: 44px; display: flex; gap: 18px; align-items: end; flex-wrap: wrap; border-bottom: 4px solid var(--c, var(--gold)); padding-bottom: 14px; margin-bottom: 16px; }
+  .pf-head .nm { font-family: "DM Serif Display", serif; font-size: clamp(40px, 7vw, 64px); line-height: 1; }
+  .pf-head .big { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: clamp(28px, 4vw, 40px); margin-left: auto; }
+  .stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+  .stat { background: rgba(0,0,0,.2); border-radius: 12px; padding: 10px 12px; }
+  .stat .v { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 20px; }
+  .stat .l { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .1em; }
+  .pf-badges { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pf-badges img { width: 58px; height: 58px; }
+  .h2hrow { display: grid; grid-template-columns: 110px 1fr 70px; gap: 10px; align-items: center; font-size: 14px; padding: 5px 0; }
+  .h2hrow .bar { height: 10px; border-radius: 5px; background: rgba(255,138,122,.55); overflow: hidden; }
+  .h2hrow .bar i { display: block; height: 100%; background: var(--up); border-radius: 5px 0 0 5px; }
+
+  footer { text-align: center; color: var(--faint); font-size: 13px; padding: 60px 0 40px; }
+  footer img { width: 120px; opacity: .8; }
+  .suits { position: fixed; inset: 0; pointer-events: none; z-index: 0; font-size: 90px; color: rgba(244,239,227,.03); overflow: hidden; }
+  .suits span { position: absolute; animation: drift 40s linear infinite; }
+  @keyframes drift { from { transform: translateY(110vh) rotate(0); } to { transform: translateY(-20vh) rotate(360deg); } }
+  .reveal { opacity: 0; transform: translateY(24px); transition: opacity .7s ease, transform .7s ease; }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } .reveal { opacity: 1; transform: none; } }
+  @media (max-width: 600px) { .badges { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; } .badge { padding: 12px 8px; } .badge img { width: 76px; height: 76px; } .badge .n { font-size: 17px; } .badge .ds { font-size: 12px; }
+    .netbar { width: 90px; } th, td { padding: 8px 6px; } .hero { padding-top: 32px; } }
+</style>
+</head>
+<body>
+<div class="suits" aria-hidden="true"></div>
+
+<nav class="top"><div class="wrap">
+  <a class="brand" href="#top"><img src="assets/logo.png" alt=""><span>Record Book</span></a>
+  <div class="links" id="navlinks">
+    <a href="#leaderboard">Leaderboard</a>
+    <a href="#race">The Race</a>
+    <a href="#nights">Nights</a>
+    <a href="#records">Records</a>
+    <a href="#rivalries">Rivalries</a>
+    <a href="#money">Money</a>
+    <a href="#style">Play Style</a>
+    <a href="#trophies">Trophies</a>
+    <a href="#history">History</a>
+  </div>
+</div></nav>
+
+<main class="wrap" id="top">
+  <header class="hero">
+    <img class="logo" src="assets/logo.png" alt="SettleStack">
+    <div class="eyebrow" id="span"></div>
+    <h1>The <em>Record</em> Book</h1>
+    <p class="lede">Every game, every night, every dollar that changed hands. Settled by SettleStack, kept forever, used against you in the group chat.</p>
+    <div class="tiles" id="tiles"></div>
+    <div class="crowns" id="crowns"></div>
+  </header>
+
+  <section id="leaderboard" class="reveal">
+    <div class="sh">
+      <div><div class="eyebrow">All time</div><h2>The Leaderboard</h2>
+        <p>Lifetime net across every game. Tap a column to sort, tap a name for the full profile.</p></div>
+      <div class="seg" id="lbSeg"><button aria-pressed="true" data-v="reg">Regulars</button><button aria-pressed="false" data-v="all">Everyone</button></div>
+    </div>
+    <div class="panel scroll-x"><table id="lb"></table></div>
+  </section>
+
+  <section id="race" class="reveal">
+    <div class="sh"><div><div class="eyebrow">Bankroll</div><h2>The Race</h2>
+      <p>Cumulative winnings after every night. Hover for the standings on any night; tap a name to isolate it.</p></div></div>
+    <div class="panel"><div class="chart" id="raceChart"></div><div class="legend" id="raceLegend"></div></div>
+  </section>
+
+  <section id="nights" class="reveal">
+    <div class="sh"><div><div class="eyebrow">Night by night</div><h2>Every Night, Every Seat</h2>
+      <p>Each square is one player's result for the night. Green took money home, red left it on the table.</p></div></div>
+    <div class="panel"><div class="scroll-x"><div class="chart heat" id="heat"></div></div>
+      <div class="scale"><span>Lost</span><i></i><span>Won</span><span class="dim" style="margin-left:auto">empty = didn't play</span></div></div>
+    <div class="panel"><div class="ptitle">The nights, newest first</div><div class="nights" id="nightCards"></div></div>
+  </section>
+
+  <section id="records" class="reveal">
+    <div class="sh"><div><div class="eyebrow">Etched in felt</div><h2>The Record Wall</h2>
+      <p>The biggest, worst, longest and closest. Come take one.</p></div></div>
+    <div class="records" id="recWall"></div>
+    <div class="grid2" style="margin-top:14px">
+      <div class="panel"><div class="ptitle">🏆 Hall of Fame · biggest single games</div><div class="chart" id="fame"></div></div>
+      <div class="panel"><div class="ptitle">🗑️ Hall of Shame · worst single games</div><div class="chart" id="shame"></div></div>
+    </div>
+  </section>
+
+  <section id="rivalries" class="reveal">
+    <div class="sh"><div><div class="eyebrow">Head to head</div><h2>Rivalries</h2>
+      <p>In games both players sat in, how often did the row player finish ahead of the column player?</p></div></div>
+    <div class="panel"><div class="scroll-x"><div class="chart" id="h2h"></div></div>
+      <div class="note">Regulars only (8+ games). Ties are left out of the count.</div></div>
+  </section>
+
+  <section id="money" class="reveal">
+    <div class="sh"><div><div class="eyebrow">Follow the money</div><h2>Who Pays Whom</h2>
+      <p>Every Venmo SettleStack ever told someone to send. Each ribbon points at, and wears the colour of, the player who got paid. Hover a name to see just their money.</p></div></div>
+    <div class="grid2">
+      <div class="panel"><div class="ptitle">The money web</div><div class="chart" id="chord"></div></div>
+      <div class="panel"><div class="ptitle">Biggest one-way pipelines</div><div class="chart" id="pipes"></div></div>
+    </div>
+    <div class="panel"><div class="ptitle">Nemesis &amp; ATM</div><div class="rivals" id="rivals"></div>
+      <div class="note">Nemesis: the player you've paid the most. ATM: the player who's paid you the most.</div></div>
+  </section>
+
+  <section id="style" class="reveal">
+    <div class="sh"><div><div class="eyebrow">Play style</div><h2>Risk vs. Reward</h2>
+      <p>Average result per game against how wildly results swing. Up and left is a steady earner; down and right is chaos.</p></div></div>
+    <div class="grid2">
+      <div class="panel"><div class="ptitle">Average vs. volatility</div><div class="chart" id="scatter"></div></div>
+      <div class="panel"><div class="ptitle">Every game result, by player</div><div class="chart" id="swarm"></div></div>
+    </div>
+  </section>
+
+  <section id="trophies" class="reveal">
+    <div class="sh">
+      <div><div class="eyebrow">SettleStack achievements</div><h2>The Trophy Case</h2>
+        <p>Every badge in the game and who's earned it. Rarity is the share of players holding it.</p></div>
+      <select id="badgeFilter" aria-label="Filter by player"><option value="">Everyone</option></select>
+    </div>
+    <div class="badges" id="badges"></div>
+  </section>
+
+  <section id="history" class="reveal">
+    <div class="sh"><div><div class="eyebrow">The archive</div><h2>History</h2>
+      <p>How the game grew: games per month, money in play, and every player's first night at the table.</p></div></div>
+    <div class="grid2">
+      <div class="panel"><div class="ptitle">Money in play by month</div><div class="chart" id="months"></div></div>
+      <div class="panel"><div class="ptitle">Rookie report · debut night result</div><div class="chart" id="rookies"></div></div>
+    </div>
+  </section>
+
+  <footer>
+    <img src="assets/logo.png" alt="SettleStack"><br>
+    <span id="built"></span><br>Built from SettleStack game logs. Games with fewer than three players aren't counted.
+  </footer>
+</main>
+
+<div class="tip" id="tip"></div>
+<div class="modal" id="modal" role="dialog" aria-modal="true"><div class="sheet"><button class="x" aria-label="Close">×</button><div id="sheet"></div></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
+<script>
+(async function () {
+const D = await fetch("data.json", { cache: "no-cache" }).then(r => r.json());
+
+// ---------- basics ----------------------------------------------------------
+const P = new Map(D.players.map(p => [p.id, p]));
+const G = new Map(D.games.map(g => [g.id, g]));
+const REG = D.regulars;                       // 8+ games, ordered by games played
+// Seven hues validated against the felt surface (dataviz validator, dark mode,
+// adjacent pairs). Assigned in fixed order to the most frequent players; the
+// rest share a recessive gray and are named on hover.
+const PALETTE = ["#4a90e8", "#e0662f", "#1fa574", "#c98500", "#dd5c8c", "#9085e9", "#e66767"];
+const COLOR = new Map(REG.slice(0, PALETTE.length).map((id, i) => [id, PALETTE[i]]));
+const col = id => COLOR.get(id) || "#5f7a6c";
+const nm = id => (P.get(id) || {}).name || "?";
+const money = (v, sign = true) => (sign ? (v > 0.004 ? "+" : v < -0.004 ? "−" : "") : (v < 0 ? "−" : "")) + "$" + Math.abs(v).toFixed(2);
+const money0 = v => (v > 0 ? "+" : v < 0 ? "−" : "") + "$" + Math.abs(Math.round(v));
+const cls = v => v > 0.004 ? "up" : v < -0.004 ? "down" : "dim";
+const parse = d3.timeParse("%Y-%m-%d");
+const dShort = d => d3.timeFormat("%b %-d, %Y")(parse(d));
+const dTiny = d => d3.timeFormat("%b ’%y")(parse(d));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const whoHTML = id => `<span class="who" data-pid="${id}"><span class="chip" style="--c:${col(id)}"></span>${esc(nm(id))}</span>`;
+const $ = s => document.querySelector(s);
+const W = el => Math.max(300, el.getBoundingClientRect().width);
+
+// tooltip
+const tip = $("#tip");
+function showTip(html, ev) {
+  tip.innerHTML = html; tip.classList.add("on");
+  const pad = 14, r = tip.getBoundingClientRect();
+  let x = ev.clientX + pad, y = ev.clientY + pad;
+  if (x + r.width > innerWidth - 8) x = ev.clientX - r.width - pad;
+  if (y + r.height > innerHeight - 8) y = ev.clientY - r.height - pad;
+  tip.style.left = Math.max(8, x) + "px"; tip.style.top = Math.max(8, y) + "px";
+}
+const hideTip = () => tip.classList.remove("on");
+const tipRow = (id, v, extra = "") => `<div class="row"><span class="nm"><span class="chip" style="--c:${col(id)}"></span>${esc(nm(id))}${extra}</span><b class="${cls(v)}">${money(v)}</b></div>`;
+
+// decorative suits
+const suits = $(".suits");
+for (let i = 0; i < 10; i++) { const s = document.createElement("span"); s.textContent = "♠♥♦♣"[i % 4]; s.style.left = (i * 10 + 3) + "%"; s.style.animationDelay = (-i * 4.1) + "s"; s.style.animationDuration = (34 + i * 3) + "s"; suits.appendChild(s); }
+
+// ---------- hero ------------------------------------------------------------
+const S = D.summary;
+$("#span").textContent = `${dTiny(S.first)} — ${dTiny(S.last)} · ${S.nights} nights`;
+const biggestPot = D.records.find(r => r.k === "Biggest pot");
+[[S.nights, "Poker nights"], [S.games, "Games"], [S.players, "Players"],
+ ["$" + d3.format(",")(Math.round(S.money)), "Money in play"],
+ ["$" + d3.format(",")(Math.round(S.moved)), "Venmo'd between us"],
+ ["$" + biggestPot.value.toFixed(0), "Biggest pot"]].forEach(([v, l], i) => {
+  const t = document.createElement("div"); t.className = "tile";
+  t.innerHTML = `<div class="v" data-count="${typeof v === "number" ? v : ""}">${v}</div><div class="l">${l}</div>`;
+  $("#tiles").appendChild(t);
+});
+document.querySelectorAll("[data-count]").forEach(el => {
+  const n = +el.dataset.count; if (!n) return;
+  d3.select(el).transition().duration(1400).ease(d3.easeCubicOut).tween("t", () => t => el.textContent = Math.round(n * t));
+});
+
+const leader = D.players[0];
+const lastNight = D.nights[D.nights.length - 1];
+// only players who've sat in one of the last three nights can be "on" a streak
+const recent = D.nights.slice(-3)[0].date;
+const hot = D.players.filter(p => p.streak > 0 && p.last >= recent).sort((a, b) => b.streak - a.streak || b.net - a.net)[0] || leader;
+const cold = D.players.filter(p => p.games >= 8).sort((a, b) => a.net - b.net)[0];
+[["👑", "All-time leader", leader.id, `${money(leader.net)} over ${leader.games} games`],
+ ["🌙", `Last night · ${dShort(lastNight.date)}`, lastNight.nets[0][0], `Won the night ${money(lastNight.nets[0][1])}`],
+ ["🔥", "Hottest streak", hot.id, `${hot.streak} straight winning game${hot.streak > 1 ? "s" : ""}`],
+ ["🏧", "The table's ATM", cold.id, `${money(cold.net)} lifetime. Thank you for your service.`]]
+.forEach(([ic, k, id, s]) => {
+  const c = document.createElement("div"); c.className = "crown-card"; c.dataset.pid = id;
+  c.innerHTML = `<div class="ic">${ic}</div><div><div class="k">${k}</div><div class="n">${esc(nm(id))}</div><div class="s">${s}</div></div>`;
+  $("#crowns").appendChild(c);
+});
+
+// ---------- leaderboard -----------------------------------------------------
+const lbCols = [
+  { k: "rk", h: "#", f: (p, i) => i + 1, cls: "rk", nosort: true },
+  { k: "name", h: "Player", f: p => whoHTML(p.id), sort: p => p.name, asc: true },
+  { k: "net", h: "Net", f: p => `<span class="${cls(p.net)}">${money(p.net)}</span>`, cls: "num" },
+  { k: "bar", h: "", f: p => `<div class="netbar" data-net="${p.net}"></div>`, nosort: true },
+  { k: "games", h: "Games", cls: "num" },
+  { k: "nights", h: "Nights", cls: "num" },
+  { k: "winpct", h: "Win %", f: p => Math.round(100 * p.won / p.games) + "%", sort: p => p.won / p.games, cls: "num" },
+  { k: "avg", h: "Avg/game", f: p => `<span class="${cls(p.avg)}">${money(p.avg)}</span>`, cls: "num" },
+  { k: "firsts", h: "1st place", cls: "num" },
+  { k: "best", h: "Best", f: p => `<span class="up">${money(p.best.net)}</span>`, sort: p => p.best.net, cls: "num" },
+  { k: "worst", h: "Worst", f: p => `<span class="down">${money(p.worst.net)}</span>`, sort: p => p.worst.net, cls: "num" },
+  { k: "streak", h: "Streak", f: p => p.streak ? `<span class="streak ${p.streak > 0 ? "w" : "l"}">${p.streak > 0 ? "W" : "L"}${Math.abs(p.streak)}</span>` : "–", cls: "num" },
+  { k: "spark", h: "Last 12", f: p => `<svg class="spark" data-pid="${p.id}" width="96" height="24"></svg>`, nosort: true },
+];
+let lbSort = { k: "net", asc: false }, lbScope = "reg";
+const maxAbs = d3.max(D.players, p => Math.abs(p.net));
+function renderLB() {
+  const rows = D.players.filter(p => lbScope === "all" || p.games >= 8);
+  const c = lbCols.find(c => c.k === lbSort.k);
+  const key = c.sort || (p => p[c.k]);
+  rows.sort((a, b) => { const x = key(a), y = key(b); return (x < y ? -1 : x > y ? 1 : 0) * (lbSort.asc ? 1 : -1); });
+  $("#lb").innerHTML = `<thead><tr>${lbCols.map(c => `<th class="${c.cls || ""} ${c.k === lbSort.k ? "sorted" + (lbSort.asc ? " asc" : "") : ""}" data-k="${c.k}">${c.h}</th>`).join("")}</tr></thead>
+    <tbody>${rows.map((p, i) => `<tr>${lbCols.map(c => `<td class="${c.cls || ""}">${c.f ? c.f(p, i) : p[c.k]}</td>`).join("")}</tr>`).join("")}</tbody>`;
+  document.querySelectorAll("#lb .netbar").forEach(el => {
+    const v = +el.dataset.net, w = el.getBoundingClientRect().width || 150, x = d3.scaleLinear([-maxAbs, maxAbs], [0, w]);
+    const svg = d3.select(el).append("svg").attr("width", w).attr("height", 14);
+    svg.append("line").attr("x1", x(0)).attr("x2", x(0)).attr("y1", 0).attr("y2", 14).attr("stroke", "rgba(244,239,227,.3)");
+    svg.append("rect").attr("x", x(0)).attr("y", 3).attr("height", 8).attr("rx", 3).attr("width", 0)
+      .attr("fill", v >= 0 ? "var(--up)" : "var(--down)")
+      .transition().duration(900).delay(100).attr("x", Math.min(x(0), x(v))).attr("width", Math.abs(x(v) - x(0)));
+  });
+  document.querySelectorAll("#lb svg.spark").forEach(el => {
+    const s = P.get(+el.dataset.pid).series.slice(-12).map(d => d[1]);
+    const m = d3.max(s, Math.abs) || 1, bw = 96 / 12;
+    d3.select(el).selectAll("rect").data(s).join("rect")
+      .attr("x", (d, i) => i * bw + 1).attr("width", bw - 2).attr("rx", 1.5)
+      .attr("y", d => d >= 0 ? 12 - 11 * d / m : 12).attr("height", d => Math.max(1, 11 * Math.abs(d) / m))
+      .attr("fill", d => d >= 0 ? "var(--up)" : "var(--down)");
+  });
+}
+$("#lb").addEventListener("click", e => {
+  const th = e.target.closest("th"); if (!th) return;
+  const c = lbCols.find(c => c.k === th.dataset.k); if (!c || c.nosort) return;
+  lbSort = lbSort.k === c.k ? { k: c.k, asc: !lbSort.asc } : { k: c.k, asc: !!c.asc };
+  renderLB();
+});
+$("#lbSeg").addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b) return;
+  lbScope = b.dataset.v;
+  $("#lbSeg").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  renderLB();
+});
+renderLB();
+
+// ---------- the race ---------------------------------------------------------
+const raceHidden = new Set();
+let raceFocus = null;
+function renderRace() {
+  const el = $("#raceChart"); el.innerHTML = "";
+  const w = W(el), h = Math.max(300, Math.min(480, w * 0.52)), m = { t: 14, r: w < 560 ? 64 : 96, b: 28, l: 48 };
+  const nights = D.nights.map(n => n.date);
+  // cumulative per player, carried across nights they skipped
+  const cum = new Map();
+  D.players.forEach(p => cum.set(p.id, []));
+  const run = new Map(D.players.map(p => [p.id, null]));
+  D.nights.forEach((n, i) => {
+    n.nets.forEach(([id, v]) => run.set(id, (run.get(id) || 0) + v));
+    run.forEach((v, id) => { if (v !== null) cum.get(id).push([i, v]); });
+  });
+  const ids = D.players.map(p => p.id).filter(id => !raceHidden.has(id));
+  const x = d3.scaleLinear([0, nights.length - 1], [m.l, w - m.r]);
+  const all = ids.flatMap(id => cum.get(id).map(d => d[1]));
+  const y = d3.scaleLinear(d3.extent([0, ...all]), [h - m.b, m.t]).nice();
+  const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(6)).join("line")
+    .attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+  svg.append("line").attr("class", "zero").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(0)).attr("y2", y(0));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l - 6},0)`)
+    .call(d3.axisLeft(y).ticks(6).tickFormat(d => money0(d)).tickSize(0));
+  const every = Math.ceil(nights.length / (w / 90));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b + 16})`)
+    .selectAll("text").data(nights.map((d, i) => [d, i]).filter(([, i]) => i % every === 0)).join("text")
+    .attr("x", d => x(d[1])).attr("text-anchor", "middle").text(d => dTiny(d[0]));
+  const line = d3.line().x(d => x(d[0])).y(d => y(d[1])).curve(d3.curveMonotoneX);
+  const order = ids.slice().sort((a, b) => (COLOR.has(a) ? 1 : 0) - (COLOR.has(b) ? 1 : 0));
+  const paths = svg.append("g").selectAll("path").data(order).join("path")
+    .attr("fill", "none").attr("stroke", id => col(id))
+    .attr("stroke-width", id => COLOR.has(id) ? 2.5 : 1.25)
+    .attr("stroke-opacity", id => raceFocus ? (id === raceFocus ? 1 : .12) : (COLOR.has(id) ? 1 : .45))
+    .attr("stroke-linejoin", "round").attr("stroke-linecap", "round")
+    .attr("d", id => line(cum.get(id)));
+  paths.each(function () { const L = this.getTotalLength(); d3.select(this).attr("stroke-dasharray", `${L} ${L}`).attr("stroke-dashoffset", L).transition().duration(1600).ease(d3.easeCubicOut).attr("stroke-dashoffset", 0).on("end", function () { d3.select(this).attr("stroke-dasharray", null); }); });
+  // end labels for the coloured players (and the focus), nudged apart
+  const labelIds = ids.filter(id => COLOR.has(id) || id === raceFocus);
+  const labels = labelIds.map(id => { const s = cum.get(id), d = s[s.length - 1]; return { id, x: x(d[0]), y: y(d[1]), v: d[1] }; }).sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labels.length; i++) if (labels[i].y - labels[i - 1].y < 15) labels[i].y = labels[i - 1].y + 15;
+  const lg = svg.append("g").selectAll("g").data(labels).join("g").attr("transform", d => `translate(${w - m.r + 8},${d.y})`)
+    .attr("opacity", 0);
+  lg.transition().delay(1300).duration(400).attr("opacity", d => raceFocus && d.id !== raceFocus ? .3 : 1);
+  lg.append("text").attr("dy", "0.32em").attr("fill", "var(--ink)").attr("font-weight", 700).attr("font-size", 12).text(d => nm(d.id));
+  lg.append("text").attr("dy", "0.32em").attr("x", w < 560 ? 0 : 50).attr("y", w < 560 ? 12 : 0).attr("fill", "var(--muted)").attr("font-family", "JetBrains Mono").attr("font-size", 10).text(d => money0(d.v));
+  // crosshair
+  const hover = svg.append("g").style("display", "none");
+  hover.append("line").attr("y1", m.t).attr("y2", h - m.b).attr("stroke", "rgba(232,196,106,.6)").attr("stroke-dasharray", "2 4");
+  const dots = hover.append("g");
+  svg.append("rect").attr("x", m.l).attr("y", m.t).attr("width", w - m.l - m.r).attr("height", h - m.t - m.b).attr("fill", "transparent")
+    .on("pointermove", ev => {
+      const [px] = d3.pointer(ev); const i = Math.max(0, Math.min(nights.length - 1, Math.round(x.invert(px))));
+      hover.style("display", null).select("line").attr("x1", x(i)).attr("x2", x(i));
+      const pts = ids.map(id => [id, (cum.get(id).find(d => d[0] === i) || [])[1]]).filter(d => d[1] !== undefined).sort((a, b) => b[1] - a[1]);
+      dots.selectAll("circle").data(pts.filter(d => COLOR.has(d[0]) || d[0] === raceFocus)).join("circle")
+        .attr("cx", x(i)).attr("cy", d => y(d[1])).attr("r", 4.5).attr("fill", d => col(d[0])).attr("stroke", "var(--felt-deep)").attr("stroke-width", 2);
+      const night = D.nights[i];
+      const played = new Map(night.nets.map(n => [n[0], n[1]]));
+      showTip(`<div class="t">${dShort(night.date)} · standings</div>` + pts.slice(0, 10).map(([id, v]) =>
+        tipRow(id, v, played.has(id) ? ` <span class="${cls(played.get(id))}" style="font-size:11px">(${money(played.get(id))})</span>` : "")).join("") +
+        (pts.length > 10 ? `<div class="dim" style="font-size:11px;margin-top:4px">+${pts.length - 10} more</div>` : ""), ev);
+    })
+    .on("pointerleave", () => { hover.style("display", "none"); hideTip(); });
+  // legend
+  const leg = $("#raceLegend"); leg.innerHTML = "";
+  REG.forEach(id => {
+    const b = document.createElement("button");
+    b.innerHTML = `<span class="sw" style="--c:${col(id)}"></span>${esc(nm(id))}`;
+    if (raceFocus && raceFocus !== id) b.classList.add("off");
+    b.onclick = () => { raceFocus = raceFocus === id ? null : id; renderRace(); };
+    leg.appendChild(b);
+  });
+  const o = document.createElement("span"); o.className = "dim"; o.style.fontSize = "13px";
+  o.innerHTML = `<span class="chip" style="display:inline-block;--c:#5f7a6c;vertical-align:middle"></span> everyone else`;
+  leg.appendChild(o);
+}
+
+// ---------- heatmap ------------------------------------------------------------
+function renderHeat() {
+  const el = $("#heat"); el.innerHTML = "";
+  const rows = D.players.filter(p => p.nights >= 3).sort((a, b) => b.net - a.net);
+  const cols = D.nights;
+  const cw = Math.max(22, Math.min(40, (W(el.parentElement) - 110) / cols.length)), ch = 26, ml = 100, mt = 56;
+  const w = ml + cols.length * cw + 4, h = mt + rows.length * ch + 4;
+  const ext = d3.max(D.nights.flatMap(n => n.nets.map(d => Math.abs(d[1]))));
+  const c = d3.scaleLinear([-ext, -ext / 4, 0, ext / 4, ext], ["#ff8a7a", "#c86e62", "#3e5a4c", "#4fae78", "#7fe0a4"]).clamp(true);
+  const svg = d3.select(el).append("svg").attr("width", w).attr("height", h).attr("viewBox", `0 0 ${w} ${h}`).style("min-width", w + "px");
+  svg.selectAll(".cl").data(cols).join("text").attr("class", "cl")
+    .attr("transform", (d, i) => `translate(${ml + i * cw + cw / 2},${mt - 8}) rotate(-55)`).text(d => d3.timeFormat("%b %-d ’%y")(parse(d.date)));
+  svg.selectAll(".rl").data(rows).join("text").attr("class", "rl").attr("x", ml - 10).attr("y", (d, i) => mt + i * ch + ch / 2)
+    .attr("dy", "0.35em").attr("text-anchor", "end").attr("data-pid", d => d.id).text(d => d.name);
+  const cells = [];
+  rows.forEach((p, ri) => cols.forEach((n, ci) => { const e = n.nets.find(d => d[0] === p.id); if (e) cells.push({ p, n, v: e[1], g: e[2], ri, ci }); }));
+  svg.append("g").selectAll("rect").data(cells).join("rect").attr("class", "cell")
+    .attr("x", d => ml + d.ci * cw).attr("y", d => mt + d.ri * ch).attr("width", cw).attr("height", ch)
+    .attr("fill", d => c(d.v)).attr("opacity", 0)
+    .on("pointermove", (ev, d) => showTip(`<div class="t">${dShort(d.n.date)}</div>${tipRow(d.p.id, d.v)}<div class="dim" style="font-size:12px">${d.g} game${d.g > 1 ? "s" : ""} · ${d.n.nets.findIndex(x => x[0] === d.p.id) + 1} of ${d.n.nets.length} on the night</div>`, ev))
+    .on("pointerleave", hideTip).on("click", (ev, d) => openNight(d.n.date))
+    .transition().delay(d => d.ci * 25 + d.ri * 10).duration(300).attr("opacity", 1);
+  // crown the night's winner
+  svg.append("g").selectAll("text").data(cells.filter(d => d.n.nets[0][0] === d.p.id)).join("text")
+    .attr("x", d => ml + d.ci * cw + cw / 2).attr("y", d => mt + d.ri * ch + ch / 2).attr("dy", "0.35em").attr("text-anchor", "middle")
+    .attr("font-size", 11).attr("pointer-events", "none").text("♛").attr("fill", "#062418");
+}
+
+// ---------- night cards -----------------------------------------------------------
+function renderNightCards() {
+  const box = $("#nightCards"); box.innerHTML = "";
+  D.nights.slice().reverse().forEach(n => {
+    const top = n.nets[0], bot = n.nets[n.nets.length - 1];
+    const c = document.createElement("div"); c.className = "night";
+    const m = d3.max(n.nets, d => Math.abs(d[1])) || 1;
+    c.innerHTML = `<div class="d">${d3.timeFormat("%a · %b %-d, %Y")(parse(n.date))}</div>
+      <div class="w">♛ ${esc(nm(top[0]))} <span class="up mono" style="font-size:16px">${money(top[1])}</span></div>
+      <div class="m">${n.games.length} game${n.games.length > 1 ? "s" : ""} · ${n.nets.length} players · $${n.pot.toFixed(0)} in play${n.host ? ` · at ${esc(nm(n.host))}'s` : ""}</div>
+      <div class="m">Paid the bills: <b class="down">${esc(nm(bot[0]))} ${money(bot[1])}</b></div>
+      <div class="mini">${n.nets.map(d => `<i title="${esc(nm(d[0]))} ${money(d[1])}" style="flex:1;height:${Math.max(2, 32 * Math.abs(d[1]) / m)}px;border-radius:2px;background:${d[1] >= 0 ? "var(--up)" : "var(--down)"};align-self:${d[1] >= 0 ? "flex-end" : "flex-start"}"></i>`).join("")}</div>`;
+    c.onclick = () => openNight(n.date);
+    box.appendChild(c);
+  });
+}
+
+// ---------- records -------------------------------------------------------------
+function recValue(r) {
+  switch (r.fmt) {
+    case "money": return `<span class="${cls(r.value)}">${money(r.value)}</span>`;
+    case "pot": return "$" + r.value.toFixed(0);
+    case "spread": return "$" + r.value.toFixed(2);
+    case "pct": return r.value + "%";
+    case "sd": return "±$" + r.value.toFixed(2);
+    case "games": return r.value + " games";
+    default: return r.value;
+  }
+}
+function renderRecords() {
+  $("#recWall").innerHTML = D.records.map(r => {
+    const g = r.game ? G.get(r.game) : null;
+    return `<div class="rec" data-ic="${r.icon}"><div class="k">${esc(r.k)}</div><div class="v">${recValue(r)}</div>
+      ${r.who ? `<div class="h">${whoHTML(r.who)}</div>` : ""}
+      <div class="d">${[r.night ? `<a href="#" data-night="${r.night}">${dShort(r.night)}</a>` : "", g ? `Game ${g.n}` : "", r.note || ""].filter(Boolean).join(" · ")}</div></div>`;
+  }).join("");
+  const bars = (sel, list) => {
+    const el = $(sel); el.innerHTML = "";
+    const w = W(el), rh = 30, h = list.length * rh, ml = 110, mr = 70;
+    const x = d3.scaleLinear([0, d3.max(D.fame.concat(D.shame), d => Math.abs(d.value))], [0, w - ml - mr]);
+    const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${w} ${h}`);
+    const g = svg.selectAll("g").data(list).join("g").attr("transform", (d, i) => `translate(0,${i * rh})`);
+    g.append("text").attr("x", ml - 10).attr("y", rh / 2).attr("dy", "0.35em").attr("text-anchor", "end").attr("fill", "var(--ink)").attr("font-weight", 700).attr("font-size", 13).text(d => nm(d.who));
+    g.append("rect").attr("x", ml).attr("y", 7).attr("height", rh - 14).attr("rx", 4).attr("fill", d => d.value > 0 ? "var(--up)" : "var(--down)")
+      .attr("width", 0).transition().duration(900).delay((d, i) => i * 60).attr("width", d => x(Math.abs(d.value)));
+    g.append("text").attr("x", d => ml + x(Math.abs(d.value)) + 8).attr("y", rh / 2).attr("dy", "0.35em").attr("fill", "var(--muted)").attr("font-family", "JetBrains Mono").attr("font-size", 12).text(d => money(d.value));
+    g.append("rect").attr("width", w).attr("height", rh).attr("fill", "transparent")
+      .on("pointermove", (ev, d) => showTip(`<div class="t">${dShort(d.night)} · Game ${G.get(d.game).n}</div>${tipRow(d.who, d.value)}`, ev))
+      .on("pointerleave", hideTip).on("click", (ev, d) => openNight(d.night)).style("cursor", "pointer");
+  };
+  bars("#fame", D.fame); bars("#shame", D.shame);
+}
+
+// ---------- head to head --------------------------------------------------------
+function renderH2H() {
+  const el = $("#h2h"); el.innerHTML = "";
+  const ids = REG.slice().sort((a, b) => P.get(b).net - P.get(a).net);
+  const n = ids.length, avail = W(el.parentElement) - 100;
+  const cs = Math.max(44, Math.min(78, avail / n)), ml = 96, mt = 30;
+  const w = ml + n * cs, h = mt + n * cs;
+  const c = d3.scaleLinear([0, .3, .5, .7, 1], ["#ff8a7a", "#b96a5e", "#3e5a4c", "#4fae78", "#7fe0a4"]).clamp(true);
+  const svg = d3.select(el).append("svg").attr("width", w).attr("height", h).attr("viewBox", `0 0 ${w} ${h}`).style("min-width", w + "px");
+  svg.selectAll(".hd").data(ids).join("text").attr("x", (d, i) => ml + i * cs + cs / 2).attr("y", mt - 10).attr("text-anchor", "middle").attr("fill", "var(--ink)").attr("font-weight", 700).attr("font-size", 12).text(d => nm(d));
+  svg.selectAll(".rl").data(ids).join("text").attr("x", ml - 10).attr("y", (d, i) => mt + i * cs + cs / 2).attr("dy", "0.35em").attr("text-anchor", "end").attr("fill", "var(--ink)").attr("font-weight", 700).attr("font-size", 13).attr("data-pid", d => d).style("cursor", "pointer").text(d => nm(d));
+  const cells = [];
+  ids.forEach((a, i) => ids.forEach((b, j) => cells.push({ a, b, i, j, v: D.h2h[a][b] })));
+  const g = svg.selectAll(".c").data(cells).join("g").attr("transform", d => `translate(${ml + d.j * cs},${mt + d.i * cs})`);
+  g.append("rect").attr("x", 2).attr("y", 2).attr("width", cs - 4).attr("height", cs - 4).attr("rx", 8)
+    .attr("fill", d => d.a === d.b ? "rgba(244,239,227,.04)" : !d.v[1] ? "rgba(0,0,0,.15)" : c(d.v[0] / (d.v[0] + D.h2h[d.b][d.a][0] || 1)));
+  g.filter(d => d.a !== d.b && d.v[1]).append("text").attr("x", cs / 2).attr("y", cs / 2 - 2).attr("text-anchor", "middle").attr("fill", "#fff").attr("font-family", "JetBrains Mono").attr("font-weight", 700).attr("font-size", Math.min(16, cs / 3.6))
+    .text(d => d.v[0] + "–" + D.h2h[d.b][d.a][0]);
+  g.filter(d => d.a !== d.b && d.v[1]).append("text").attr("x", cs / 2).attr("y", cs / 2 + 13).attr("text-anchor", "middle").attr("fill", "rgba(255,255,255,.7)").attr("font-size", 10)
+    .text(d => d.v[1] + " games");
+  g.append("rect").attr("width", cs).attr("height", cs).attr("fill", "transparent")
+    .on("pointermove", (ev, d) => {
+      if (d.a === d.b) return hideTip();
+      const w = d.v[0], l = D.h2h[d.b][d.a][0];
+      showTip(`<div class="t">Head to head</div><b>${esc(nm(d.a))}</b> finished ahead of <b>${esc(nm(d.b))}</b> in <b>${w}</b> of ${d.v[1]} shared games; behind in ${l}.`, ev);
+    }).on("pointerleave", hideTip);
+}
+
+// ---------- money -----------------------------------------------------------------
+function renderMoney() {
+  // chord among the top earners/payers; everyone else folds into "Others"
+  const el = $("#chord"); el.innerHTML = "";
+  const ids = REG.slice();
+  const idx = new Map(ids.map((id, i) => [id, i])); const O = ids.length;
+  const mtx = Array.from({ length: O + 1 }, () => Array(O + 1).fill(0));
+  D.flows.forEach(([pr, pe, v]) => { const a = idx.has(pr) ? idx.get(pr) : O, b = idx.has(pe) ? idx.get(pe) : O; if (a !== b) mtx[a][b] += v; });
+  const w = W(el), size = Math.min(w, 520), R = size / 2 - 58, r0 = R - 12;
+  const chords = d3.chordDirected().padAngle(0.04).sortSubgroups(d3.descending)(mtx);
+  const svg = d3.select(el).append("svg").attr("viewBox", `${-w / 2} ${-size / 2} ${w} ${size}`);
+  const gcol = i => i === O ? "#5f7a6c" : col(ids[i]);
+  const gname = i => i === O ? "Others" : nm(ids[i]);
+  const ribbons = svg.append("g").attr("fill-opacity", .7).selectAll("path").data(chords).join("path")
+    .attr("d", d3.ribbonArrow().radius(r0 - 2).padAngle(0.01))
+    .attr("fill", d => gcol(d.target.index)).attr("stroke", "var(--felt-deep)").attr("stroke-width", .5)
+    .on("pointermove", (ev, d) => showTip(`<div class="t">Money flow</div><b>${esc(gname(d.source.index))}</b> → <b>${esc(gname(d.target.index))}</b><br><span class="mono">$${d.source.value.toFixed(2)}</span>` +
+      (mtx[d.target.index][d.source.index] ? `<br><span class="dim">Back the other way: $${mtx[d.target.index][d.source.index].toFixed(2)}</span>` : ""), ev))
+    .on("pointerleave", hideTip);
+  const grp = svg.append("g").selectAll("g").data(chords.groups).join("g");
+  grp.append("path").attr("d", d3.arc().innerRadius(r0).outerRadius(R)).attr("fill", d => gcol(d.index)).attr("stroke", "var(--felt-deep)")
+    .on("pointerenter", (ev, d) => ribbons.attr("fill-opacity", r => r.source.index === d.index || r.target.index === d.index ? .85 : .06))
+    .on("pointermove", (ev, d) => { const paid = d3.sum(mtx[d.index]), got = d3.sum(mtx, r => r[d.index]); showTip(`<div class="t">${esc(gname(d.index))}</div><div class="row"><span>Received</span><b class="up">$${got.toFixed(2)}</b></div><div class="row"><span>Paid out</span><b class="down">$${paid.toFixed(2)}</b></div>`, ev); })
+    .on("pointerleave", () => { ribbons.attr("fill-opacity", .7); hideTip(); });
+  grp.append("text").each(d => { d.a = (d.startAngle + d.endAngle) / 2; })
+    .attr("dy", "0.35em").attr("font-size", 12).attr("font-weight", 700).attr("fill", "var(--ink)")
+    .attr("transform", d => `rotate(${d.a * 180 / Math.PI - 90}) translate(${R + 8}) ${d.a > Math.PI ? "rotate(180)" : ""}`)
+    .attr("text-anchor", d => d.a > Math.PI ? "end" : null).text(d => gname(d.index));
+
+  // pipelines: net one-way flow between pairs
+  const net = new Map();
+  D.flows.forEach(([pr, pe, v]) => { const k = [pr, pe].sort((a, b) => a - b).join("-"); const s = pr < pe ? 1 : -1; net.set(k, (net.get(k) || 0) + s * v); });
+  const pipes = [...net].map(([k, v]) => { const [a, b] = k.split("-").map(Number); return v > 0 ? { from: a, to: b, v } : { from: b, to: a, v: -v }; })
+    .sort((a, b) => b.v - a.v).slice(0, 12);
+  const pe = $("#pipes"); pe.innerHTML = "";
+  const pw = W(pe), rh = 34, ph = pipes.length * rh, x = d3.scaleLinear([0, pipes[0].v], [0, pw * .38]);
+  const ps = d3.select(pe).append("svg").attr("viewBox", `0 0 ${pw} ${ph}`);
+  const pg = ps.selectAll("g").data(pipes).join("g").attr("transform", (d, i) => `translate(0,${i * rh})`);
+  const mid = pw * .44;
+  pg.append("text").attr("x", mid - 12).attr("y", rh / 2).attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 13).attr("font-weight", 700).attr("fill", "var(--ink)").text(d => nm(d.from));
+  pg.append("text").attr("x", mid).attr("y", rh / 2).attr("dy", "0.35em").attr("fill", "var(--gold)").text("→");
+  pg.append("rect").attr("x", mid + 18).attr("y", 9).attr("height", rh - 18).attr("rx", 4).attr("fill", d => col(d.to)).attr("width", 0)
+    .transition().duration(800).delay((d, i) => i * 50).attr("width", d => x(d.v));
+  pg.append("text").attr("x", d => mid + 24 + x(d.v)).attr("y", rh / 2).attr("dy", "0.35em").attr("font-size", 13).attr("font-weight", 700).attr("fill", "var(--ink)")
+    .text(d => nm(d.to)).append("tspan").attr("dx", 6).attr("fill", "var(--muted)").attr("font-family", "JetBrains Mono").attr("font-weight", 500).attr("font-size", 11).text(d => "$" + d.v.toFixed(2));
+
+  // nemesis / atm cards
+  const RV = new Map(D.rivals.map(r => [r.id, r]));
+  $("#rivals").innerHTML = REG.map(id => {
+    const r = RV.get(id);
+    return `<div class="rival" style="--c:${col(id)}"><div class="n" data-pid="${id}">${esc(nm(id))}</div>
+      <div class="l"><span>😈 Nemesis</span><span>${r.nemesis ? `<b>${esc(nm(r.nemesis[0]))}</b> <span class="down mono">$${r.nemesis[1].toFixed(2)}</span>` : "–"}</span></div>
+      <div class="l"><span>🏧 ATM</span><span>${r.atm ? `<b>${esc(nm(r.atm[0]))}</b> <span class="up mono">$${r.atm[1].toFixed(2)}</span>` : "–"}</span></div></div>`;
+  }).join("");
+}
+
+// ---------- play style --------------------------------------------------------------
+function renderStyle() {
+  const el = $("#scatter"); el.innerHTML = "";
+  const pts = D.players.filter(p => p.games >= 4);
+  const w = W(el), h = Math.min(420, w * .8), m = { t: 16, r: 20, b: 40, l: 52 };
+  const x = d3.scaleLinear([0, d3.max(pts, p => p.sd) * 1.08], [m.l, w - m.r]);
+  const yx = d3.max(pts, p => Math.abs(p.avg)) * 1.15;
+  const y = d3.scaleLinear([-yx, yx], [h - m.b, m.t]);
+  const r = d3.scaleSqrt([0, d3.max(pts, p => p.games)], [4, 22]);
+  const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(6)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+  svg.append("line").attr("class", "zero").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(0)).attr("y2", y(0));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l - 6},0)`).call(d3.axisLeft(y).ticks(6).tickFormat(d => money0(d)).tickSize(0));
+  svg.append("g").attr("class", "axis").attr("transform", `translate(0,${h - m.b + 8})`).call(d3.axisBottom(x).ticks(5).tickFormat(d => "±$" + d).tickSize(0));
+  svg.append("text").attr("x", w - m.r).attr("y", h - 4).attr("text-anchor", "end").attr("fill", "var(--muted)").attr("font-size", 11).text("swing per game (std. dev.) →");
+  const q = [[m.l + 8, m.t + 12, "start", "STEADY EARNERS"], [w - m.r - 8, m.t + 12, "end", "HIGH ROLLERS"], [m.l + 8, h - m.b - 8, "start", "SLOW BLEED"], [w - m.r - 8, h - m.b - 8, "end", "CHAOS DONORS"]];
+  svg.selectAll(".q").data(w < 520 ? q.slice(2) : q).join("text").attr("x", d => d[0]).attr("y", d => d[1]).attr("text-anchor", d => d[2]).attr("fill", "rgba(232,196,106,.45)").attr("font-family", "JetBrains Mono").attr("font-size", 10).attr("letter-spacing", ".15em").text(d => d[3]);
+  const g = svg.selectAll(".p").data(pts.sort((a, b) => b.games - a.games)).join("g").attr("transform", p => `translate(${x(p.sd)},${y(p.avg)})`).style("cursor", "pointer");
+  g.append("circle").attr("r", 0).attr("fill", p => col(p.id)).attr("fill-opacity", p => COLOR.has(p.id) ? .9 : .55).attr("stroke", "var(--felt-deep)").attr("stroke-width", 2)
+    .transition().duration(700).delay((p, i) => i * 40).attr("r", p => r(p.games));
+  // label the regulars; push overlapping labels apart vertically
+  const lab = pts.filter(p => p.games >= 8).map(p => {
+    const w0 = p.name.length * 7 + 4, right = x(p.sd) + r(p.games) + 4;
+    // labels that would run off the right edge sit to the left of their bubble
+    return right + w0 > w ? { p, x: x(p.sd) - r(p.games) - 4 - w0, y: y(p.avg), w: w0, end: true } : { p, x: right, y: y(p.avg), w: w0 };
+  }).sort((a, b) => a.y - b.y);
+  for (let it = 0; it < 30; it++) {
+    let moved = false;
+    for (let i = 0; i < lab.length; i++) for (let j = i + 1; j < lab.length; j++) {
+      const a = lab[i], b = lab[j];
+      if (a.x < b.x + b.w && b.x < a.x + a.w && Math.abs(a.y - b.y) < 14) {
+        const push = (14 - Math.abs(a.y - b.y)) / 2 + .5;
+        if (a.y <= b.y) { a.y -= push; b.y += push; } else { a.y += push; b.y -= push; }
+        moved = true;
+      }
+    }
+    if (!moved) break;
+  }
+  const lg = svg.append("g").attr("pointer-events", "none");
+  lg.selectAll("line").data(lab.filter(l => Math.abs(l.y - y(l.p.avg)) > 4)).join("line")
+    .attr("x1", l => x(l.p.sd) + (l.end ? -1 : 1) * r(l.p.games) * .7).attr("y1", l => y(l.p.avg)).attr("x2", l => l.end ? l.x + l.w + 1 : l.x - 1).attr("y2", l => l.y)
+    .attr("stroke", "rgba(244,239,227,.35)");
+  lg.selectAll("text").data(lab).join("text").attr("x", l => l.end ? l.x + l.w : l.x).attr("text-anchor", l => l.end ? "end" : "start").attr("y", l => l.y).attr("dy", "0.35em")
+    .attr("font-size", 12).attr("font-weight", 700).attr("fill", "var(--ink)")
+    .attr("paint-order", "stroke").attr("stroke", "#0a2f21").attr("stroke-width", 3).text(l => l.p.name);
+  g.on("pointermove", (ev, p) => showTip(`<div class="t">${esc(p.name)}</div><div class="row"><span>Avg per game</span><b class="${cls(p.avg)}">${money(p.avg)}</b></div><div class="row"><span>Typical swing</span><b>±$${p.sd.toFixed(2)}</b></div><div class="row"><span>Games</span><b>${p.games}</b></div>`, ev))
+    .on("pointerleave", hideTip).on("click", (ev, p) => openPlayer(p.id));
+  el.insertAdjacentHTML("beforeend", `<div class="note">Players with 4+ games. Bubble size is games played.</div>`);
+
+  // swarm: every game result per regular
+  const se = $("#swarm"); se.innerHTML = "";
+  const ids = REG.slice().sort((a, b) => P.get(b).avg - P.get(a).avg);
+  const sw = W(se), rh = 38, ml = 92, mr = 14, sh = ids.length * rh + 30;
+  const all = ids.flatMap(id => P.get(id).series.map(d => d[1]));
+  const sx = d3.scaleLinear(d3.extent(all), [ml, sw - mr]).nice();
+  const ssvg = d3.select(se).append("svg").attr("viewBox", `0 0 ${sw} ${sh}`);
+  ssvg.append("line").attr("class", "zero").attr("x1", sx(0)).attr("x2", sx(0)).attr("y1", 0).attr("y2", ids.length * rh);
+  ssvg.append("g").attr("class", "axis").attr("transform", `translate(0,${ids.length * rh + 14})`).call(d3.axisBottom(sx).ticks(6).tickFormat(d => money0(d)).tickSize(0));
+  ids.forEach((id, ri) => {
+    const cy = ri * rh + rh / 2, rad = 3.2;
+    // simple dodge: stack dots that would overlap, alternating above and below
+    const placed = [];
+    const dots = P.get(id).series.map(([gid, v]) => ({ gid, v, x: sx(v) })).sort((a, b) => a.x - b.x);
+    dots.forEach(d => {
+      for (let k = 0; ; k++) {
+        const off = (k % 2 ? -1 : 1) * Math.ceil(k / 2) * (rad * 2 + .6);
+        if (!placed.some(p => Math.abs(p.x - d.x) < rad * 2 + .6 && Math.abs(p.y - off) < rad * 2 + .6)) { d.y = off; placed.push(d); break; }
+        if (k > 12) { d.y = off; break; }
+      }
+    });
+    ssvg.append("text").attr("x", ml - 10).attr("y", cy).attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 13).attr("font-weight", 700).attr("fill", "var(--ink)").attr("data-pid", id).style("cursor", "pointer").text(nm(id));
+    ssvg.append("g").selectAll("circle").data(dots).join("circle").attr("cx", d => d.x).attr("cy", d => cy + Math.max(-rh / 2 + 3, Math.min(rh / 2 - 3, d.y))).attr("r", rad)
+      .attr("fill", d => d.v >= 0 ? "var(--up)" : "var(--down)").attr("fill-opacity", .85)
+      .on("pointermove", (ev, d) => { const g = G.get(d.gid); showTip(`<div class="t">${dShort(g.night)} · Game ${g.n}</div>${tipRow(id, d.v)}`, ev); })
+      .on("pointerleave", hideTip);
+    const avg = P.get(id).avg;
+    ssvg.append("line").attr("x1", sx(avg)).attr("x2", sx(avg)).attr("y1", cy - 12).attr("y2", cy + 12).attr("stroke", "var(--gold)").attr("stroke-width", 2.5).attr("stroke-linecap", "round");
+  });
+  se.insertAdjacentHTML("beforeend", `<div class="note">Each dot is one game. Gold tick is the average. Sorted best average first.</div>`);
+}
+
+// ---------- trophies ------------------------------------------------------------------
+function renderBadges() {
+  const f = +$("#badgeFilter").value || null;
+  const total = D.players.length;
+  const n = b => b.holders.length || 1e9;   // unclaimed badges go last
+  const list = D.badges.slice().sort((a, b) => n(a) - n(b) || a.name.localeCompare(b.name));
+  $("#badges").innerHTML = list.map(b => {
+    const hs = b.holders.filter(h => P.has(h[0]));
+    const has = f ? hs.some(h => h[0] === f) : true;
+    const rar = hs.length ? Math.round(100 * hs.length / total) + "% of players" : "Unclaimed";
+    return `<div class="badge ${hs.length ? "" : "none"} ${f && !has ? "dim" : ""}">
+      <img src="${b.img}" alt="" loading="lazy"><div class="n">${esc(b.name)}</div><div class="ds">${esc(b.desc || "")}</div>
+      <div class="rar">${rar}</div>
+      <div class="hs">${hs.slice(0, 8).map(h => `<span data-pid="${h[0]}" title="${h[1] ? "Earned " + dShort(h[1]) : ""}">${esc(nm(h[0]))}</span>`).join("")}${hs.length > 8 ? `<span>+${hs.length - 8}</span>` : ""}</div></div>`;
+  }).join("");
+}
+const bf = $("#badgeFilter");
+D.players.filter(p => D.badges.some(b => b.holders.some(h => h[0] === p.id))).sort((a, b) => a.name.localeCompare(b.name))
+  .forEach(p => bf.insertAdjacentHTML("beforeend", `<option value="${p.id}">${esc(p.name)}</option>`));
+bf.onchange = renderBadges;
+
+// ---------- history ---------------------------------------------------------------------
+function renderHistory() {
+  const el = $("#months"); el.innerHTML = "";
+  const first = parse(D.months[0].m + "-01"), last = parse(D.months[D.months.length - 1].m + "-01");
+  const all = d3.timeMonths(first, d3.timeMonth.offset(last, 1)).map(d => { const k = d3.timeFormat("%Y-%m")(d); return D.months.find(m => m.m === k) || { m: k, games: 0, pot: 0, nights: 0 }; });
+  const w = W(el), h = 260, m = { t: 20, r: 8, b: 30, l: 44 };
+  const x = d3.scaleBand(all.map(d => d.m), [m.l, w - m.r]).padding(.18);
+  const y = d3.scaleLinear([0, d3.max(all, d => d.pot)], [h - m.b, m.t]).nice();
+  const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${w} ${h}`);
+  svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(4)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+  svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l - 6},0)`).call(d3.axisLeft(y).ticks(4).tickFormat(d => "$" + d).tickSize(0));
+  const every = Math.ceil(all.length / (w / 60));
+  svg.append("g").attr("class", "axis").selectAll("text").data(all.filter((d, i) => i % every === 0)).join("text")
+    .attr("x", d => x(d.m) + x.bandwidth() / 2).attr("y", h - 8).attr("text-anchor", "middle").text(d => d3.timeFormat("%b ’%y")(parse(d.m + "-01")));
+  svg.selectAll(".b").data(all).join("rect").attr("x", d => x(d.m)).attr("width", x.bandwidth()).attr("rx", 3)
+    .attr("fill", "var(--gold)").attr("y", h - m.b).attr("height", 0)
+    .on("pointermove", (ev, d) => showTip(`<div class="t">${d3.timeFormat("%B %Y")(parse(d.m + "-01"))}</div><div class="row"><span>Money in play</span><b>$${d.pot.toFixed(0)}</b></div><div class="row"><span>Games</span><b>${d.games}</b></div><div class="row"><span>Nights</span><b>${d.nights}</b></div>`, ev))
+    .on("pointerleave", hideTip)
+    .transition().duration(800).delay((d, i) => i * 30).attr("y", d => y(d.pot)).attr("height", d => y(0) - y(d.pot));
+
+  const re = $("#rookies"); re.innerHTML = "";
+  const rk = D.players.slice().sort((a, b) => a.debut.night < b.debut.night ? -1 : 1);
+  const rw = W(re), rh = 22, ml = 96, mr = 60, ht = rk.length * rh;
+  const ext = d3.max(rk, p => Math.abs(p.debut.net)) || 1;
+  const rx = d3.scaleLinear([-ext, ext], [ml, rw - mr]);
+  const rs = d3.select(re).append("svg").attr("viewBox", `0 0 ${rw} ${ht + 4}`);
+  rs.append("line").attr("class", "zero").attr("x1", rx(0)).attr("x2", rx(0)).attr("y1", 0).attr("y2", ht);
+  const rg = rs.selectAll("g").data(rk).join("g").attr("transform", (d, i) => `translate(0,${i * rh})`);
+  rg.append("text").attr("x", ml - 8).attr("y", rh / 2).attr("dy", "0.35em").attr("text-anchor", "end").attr("font-size", 12).attr("font-weight", 700).attr("fill", "var(--ink)").attr("data-pid", d => d.id).style("cursor", "pointer").text(d => d.name);
+  rg.append("rect").attr("y", 5).attr("height", rh - 10).attr("rx", 3).attr("fill", d => d.debut.net >= 0 ? "var(--up)" : "var(--down)")
+    .attr("x", rx(0)).attr("width", 0).transition().duration(700).delay((d, i) => i * 25)
+    .attr("x", d => Math.min(rx(0), rx(d.debut.net))).attr("width", d => Math.max(1.5, Math.abs(rx(d.debut.net) - rx(0))));
+  rg.append("text").attr("x", rw - 4).attr("y", rh / 2).attr("dy", "0.35em").attr("text-anchor", "end").attr("font-family", "JetBrains Mono").attr("font-size", 10).attr("fill", "var(--muted)").text(d => dTiny(d.debut.night));
+  rg.append("rect").attr("width", rw).attr("height", rh).attr("fill", "transparent")
+    .on("pointermove", (ev, d) => showTip(`<div class="t">Debut · ${dShort(d.debut.night)}</div>${tipRow(d.id, d.debut.net)}<div class="dim" style="font-size:12px">First game at the table</div>`, ev)).on("pointerleave", hideTip);
+}
+
+// ---------- modals -------------------------------------------------------------------------
+const modal = $("#modal"), sheet = $("#sheet");
+function openModal(html, after) { sheet.innerHTML = html; modal.classList.add("on"); document.body.style.overflow = "hidden"; modal.scrollTop = 0; if (after) requestAnimationFrame(after); }
+function closeModal() { modal.classList.remove("on"); document.body.style.overflow = ""; hideTip(); if (location.hash.startsWith("#p/") || location.hash.startsWith("#n/")) history.replaceState(null, "", location.pathname); }
+modal.addEventListener("click", e => { if (e.target === modal || e.target.closest(".x")) closeModal(); });
+addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+function openPlayer(id) {
+  const p = P.get(id); if (!p) return;
+  const rank = D.players.indexOf(p) + 1;
+  const RV = D.rivals.find(r => r.id === id);
+  const earned = D.badges.filter(b => b.holders.some(h => h[0] === id));
+  const h2h = D.h2h[id];
+  history.replaceState(null, "", "#p/" + encodeURIComponent(p.name));
+  openModal(`<div class="pf-head" style="--c:${col(id)}"><div><div class="eyebrow">#${rank} all time · since ${dTiny(p.first)}</div><div class="nm">${esc(p.name)}</div></div>
+      <div class="big ${cls(p.net)}">${money(p.net)}</div></div>
+    <div class="stats">${[
+      [p.games, "Games"], [p.nights, "Nights"], [`${p.won}–${p.lost}`, "Won–lost games"], [Math.round(100 * p.won / p.games) + "%", "Win rate"],
+      [money(p.avg), "Avg per game", cls(p.avg)], [p.firsts, "1st-place finishes"], [p.lasts, "Last-place finishes"], [p.nights_won + "/" + p.nights, "Nights won"],
+      [money(p.best.net), "Best game", "up"], [money(p.worst.net), "Worst game", "down"], [money(p.best_night[1]), "Best night", cls(p.best_night[1])], [money(p.worst_night[1]), "Worst night", cls(p.worst_night[1])],
+      [p.win_streak, "Longest win streak"], [p.lose_streak, "Longest skid"], [p.streak ? (p.streak > 0 ? "W" : "L") + Math.abs(p.streak) : "–", "Current streak", p.streak > 0 ? "up" : p.streak < 0 ? "down" : ""], ["±$" + p.sd.toFixed(2), "Typical swing"],
+      [(p.roi > 0 ? "+" : "") + p.roi.toFixed(1) + "%", "Return on buy-ins", cls(p.roi)], [p.busts, "Busts"],
+      [RV && RV.nemesis ? nm(RV.nemesis[0]) : "–", "Nemesis (paid most)"], [RV && RV.atm ? nm(RV.atm[0]) : "–", "ATM (paid them most)"],
+    ].map(([v, l, c]) => `<div class="stat"><div class="v ${c || ""}">${esc(v)}</div><div class="l">${l}</div></div>`).join("")}</div>
+    <div class="panel" style="margin-top:14px"><div class="ptitle">Bankroll, game by game</div><div class="chart" id="pfChart"></div></div>
+    ${h2h ? `<div class="panel"><div class="ptitle">Head to head vs. the regulars</div>${REG.filter(o => o !== id && h2h[o][1]).sort((a, b) => h2h[b][1] - h2h[a][1]).map(o => {
+      const w = h2h[o][0], l = D.h2h[o][id][0], t = w + l || 1;
+      return `<div class="h2hrow"><span>${whoHTML(o)}</span><div class="bar"><i style="width:${100 * w / t}%"></i></div><span class="mono" style="text-align:right">${w}–${l}</span></div>`;
+    }).join("")}</div>` : ""}
+    ${earned.length ? `<div class="panel"><div class="ptitle">Trophies · ${earned.length}</div><div class="pf-badges">${earned.map(b => `<img src="${b.img}" alt="${esc(b.name)}" title="${esc(b.name)}: ${esc(b.desc || "")}">`).join("")}</div></div>` : ""}`,
+  () => {
+    const el = $("#pfChart"); const w = W(el), h = 240, m = { t: 12, r: 10, b: 26, l: 46 };
+    let run = 0; const s = p.series.map(([gid, v], i) => ({ i, gid, v, c: (run += v) }));
+    const x = d3.scaleBand(s.map(d => d.i), [m.l, w - m.r]).padding(.2);
+    const y = d3.scaleLinear(d3.extent([0, ...s.map(d => d.c), ...s.map(d => d.v)]), [h - m.b, m.t]).nice();
+    const svg = d3.select(el).append("svg").attr("viewBox", `0 0 ${w} ${h}`);
+    svg.append("g").attr("class", "grid").selectAll("line").data(y.ticks(5)).join("line").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y).attr("y2", y);
+    svg.append("line").attr("class", "zero").attr("x1", m.l).attr("x2", w - m.r).attr("y1", y(0)).attr("y2", y(0));
+    svg.append("g").attr("class", "axis").attr("transform", `translate(${m.l - 6},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d => money0(d)).tickSize(0));
+    svg.selectAll(".b").data(s).join("rect").attr("x", d => x(d.i)).attr("width", x.bandwidth()).attr("rx", Math.min(3, x.bandwidth() / 3))
+      .attr("y", d => y(Math.max(0, d.v))).attr("height", d => Math.abs(y(d.v) - y(0))).attr("fill", d => d.v >= 0 ? "rgba(127,224,164,.55)" : "rgba(255,138,122,.55)");
+    const ln = svg.append("path").datum(s).attr("fill", "none").attr("stroke", col(id) === "#5f7a6c" ? "var(--gold)" : col(id)).attr("stroke-width", 2.5)
+      .attr("d", d3.line().x(d => x(d.i) + x.bandwidth() / 2).y(d => y(d.c)).curve(d3.curveMonotoneX));
+    const L = ln.node().getTotalLength(); ln.attr("stroke-dasharray", `${L} ${L}`).attr("stroke-dashoffset", L).transition().duration(1200).attr("stroke-dashoffset", 0);
+    svg.append("g").attr("class", "axis").selectAll("text").data([s[0], s[s.length - 1]]).join("text").attr("x", (d, i) => i ? w - m.r : m.l).attr("y", h - 6).attr("text-anchor", (d, i) => i ? "end" : "start").text(d => dTiny(G.get(d.gid).night));
+    svg.append("g").selectAll("rect").data(s).join("rect").attr("x", d => x(d.i) - x.step() * x.paddingInner() / 2).attr("width", x.step()).attr("y", m.t).attr("height", h - m.t - m.b).attr("fill", "transparent")
+      .on("pointermove", (ev, d) => { const g = G.get(d.gid); showTip(`<div class="t">${dShort(g.night)} · Game ${g.n}</div><div class="row"><span>This game</span><b class="${cls(d.v)}">${money(d.v)}</b></div><div class="row"><span>Running total</span><b class="${cls(d.c)}">${money(d.c)}</b></div>`, ev); })
+      .on("pointerleave", hideTip);
+  });
+}
+
+function openNight(date) {
+  const n = D.nights.find(x => x.date === date); if (!n) return;
+  history.replaceState(null, "", "#n/" + date);
+  const games = n.games.map(id => G.get(id));
+  openModal(`<div class="pf-head"><div><div class="eyebrow">${n.games.length} games · ${n.nets.length} players · $${n.pot.toFixed(0)} in play${n.host ? " · hosted by " + esc(nm(n.host)) : ""}</div>
+      <div class="nm">${d3.timeFormat("%B %-d, %Y")(parse(date))}</div></div></div>
+    <div class="grid2">
+      <div class="panel"><div class="ptitle">The night</div><table><tbody>${n.nets.map((d, i) => `<tr><td class="rk">${i ? i + 1 : "♛"}</td><td>${whoHTML(d[0])}</td><td class="num dim">${d[2]}g</td><td class="num ${cls(d[1])}">${money(d[1])}</td></tr>`).join("")}</tbody></table></div>
+      ${games.map(g => `<div class="panel"><div class="ptitle">Game ${g.n} · $${g.pot.toFixed(0)} pot</div><table><tbody>${g.seats.map((s, i) => `<tr><td class="rk">${i + 1}</td><td>${whoHTML(s[0])}</td><td class="num dim">$${s[2].toFixed(0)} → $${s[3].toFixed(2)}</td><td class="num ${cls(s[1])}">${money(s[1])}</td></tr>`).join("")}</tbody></table></div>`).join("")}
+    </div>`);
+}
+
+// clicks on any player name open their profile; record links open nights
+document.addEventListener("click", e => {
+  const n = e.target.closest("[data-night]"); if (n) { e.preventDefault(); openNight(n.dataset.night); return; }
+  const p = e.target.closest("[data-pid]"); if (p) { e.preventDefault(); openPlayer(+p.dataset.pid); }
+});
+
+// ---------- boot ----------------------------------------------------------------------------
+$("#built").textContent = "Updated " + d3.timeFormat("%B %-d, %Y")(new Date(D.built));
+const renders = { race: renderRace, nights: () => { renderHeat(); renderNightCards(); }, records: renderRecords, rivalries: renderH2H, money: renderMoney, style: renderStyle, trophies: renderBadges, history: renderHistory };
+const done = new Set();
+const io = new IntersectionObserver(es => es.forEach(e => {
+  if (!e.isIntersecting) return;
+  e.target.classList.add("in");
+  const f = renders[e.target.id];
+  if (f && !done.has(e.target.id)) { done.add(e.target.id); f(); }
+}), { rootMargin: "0px 0px -10% 0px" });
+document.querySelectorAll("section").forEach(s => io.observe(s));
+// active nav link
+const links = [...document.querySelectorAll("#navlinks a")];
+const navIO = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) links.forEach(a => a.classList.toggle("on", a.getAttribute("href") === "#" + e.target.id)); }), { rootMargin: "-45% 0px -50% 0px" });
+document.querySelectorAll("section").forEach(s => navIO.observe(s));
+let rw = innerWidth;
+addEventListener("resize", () => { if (Math.abs(innerWidth - rw) < 40) return; rw = innerWidth; renderLB(); done.forEach(k => renders[k]()); });
+// deep links: #p/John or #n/2026-09-25
+const h = decodeURIComponent(location.hash);
+if (h.startsWith("#p/")) { const p = D.players.find(p => p.name === h.slice(3)); if (p) openPlayer(p.id); }
+if (h.startsWith("#n/")) openNight(h.slice(3));
+})();
+</script>
+</body>
+</html>
